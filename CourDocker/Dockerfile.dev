@@ -1,0 +1,21 @@
+# Développement Dockerfile pour Angular
+FROM node:22-alpine
+
+# Installer outils utiles pour le développement
+RUN apk add --no-cache bash
+
+WORKDIR /app
+
+# Copier package files
+COPY package*.json ./
+
+# Installer TOUTES les dépendances (y compris dev)
+RUN npm install
+
+# Exposer le port du serveur de développement Angular
+EXPOSE 4200
+
+# Démarrer serveur de développement avec hot-reload
+# --host 0.0.0.0 permet l'accès depuis l'extérieur du conteneur
+# --poll=2000 active le polling pour le hot-reload avec volumes
+CMD ["npm", "start", "--", "--host", "0.0.0.0", "--poll=2000"]
