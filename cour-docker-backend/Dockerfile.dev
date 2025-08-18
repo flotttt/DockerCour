@@ -1,19 +1,72 @@
-# Développement Dockerfile pour Nest.js
-FROM node:22-alpine
+# ===== Stage DEVELOPMENT =====
+FROM node:22-alpine AS development
 
-# Installer outils utiles pour le développement
+# Installer des outils utiles pour le développement
 RUN apk add --no-cache bash curl
 
 WORKDIR /usr/src/app
 
-# Copier package files
+# Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer TOUTES les dépendances (y compris dev)
-RUN npm install
+# Installer toutes les dépendances (dev + prod)
+RUN npm ci
+
+# Copier le code source
+COPY . .
+
+# Exposer le port de développement
+EXPOSE 3000
+
+# Commande de développement avec hot-reload
+CMD ["npm", "run", "start:dev"]
+
+# ===== Stage BUILD =====
+FROM node:22-alpine AS build
+
+WORKDIR /usr/src/app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer toutes les dépendances pour le build
+RUN npm ci
+
+# Copier le code source
+COPY . .
+
+# Compiler l'application TypeScript
+RUN npm run build
+
+# ===== Stage PRODUCTION =====
+FROM node:22-alpine AS production
+
+# Créer un utilisateur non-root pour la sécurité
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
+
+WORKDIR /usr/src/app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer seulement les dépendances de production
+RUN npm ci --only=production && npm cache clean --force
+
+# Copier l'application compilée depuis le stage build
+COPY --from=build /usr/src/app/dist ./dist
+COPY --from=build /usr/src/app/node_modules ./node_modules
+
+# Changer les permissions
+RUN chown -R nestjs:nodejs /usr/src/app
+USER nestjs
 
 # Exposer le port
 EXPOSE 3000
 
-# Démarrer en mode développement avec hot-reload
-CMD ["npm", "run", "start:dev"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/books || exit 1
+
+# Commande de production
+CMD ["node", "dist/main"]
