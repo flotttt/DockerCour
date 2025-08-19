@@ -1,79 +1,142 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// src/books/books.service.ts - VERSION FINALE QUI MARCHE
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Pool } from 'pg';
 import { Book } from './entities/book.entity';
 
 @Injectable()
-export class BooksService {
-    private books: Book[] = [
-        new Book({
-            id: 1,
-            title: 'Clean Code',
-            author: 'Robert C. Martin',
-            isbn: '978-0132350884',
-            publicationYear: 2008,
-            genre: 'Programming',
-            available: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        }),
-        new Book({
-            id: 2,
-            title: 'The Pragmatic Programmer',
-            author: 'Andrew Hunt',
-            isbn: '978-0201616224',
-            publicationYear: 1999,
-            genre: 'Programming',
-            available: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        }),
-    ];
+export class BooksService implements OnModuleInit {
+    private pool: Pool;
 
-    private nextId = 3;
-
-    findAll(): Book[] {
-        return this.books;
-    }
-
-    findOne(id: number): Book {
-        const book = this.books.find(book => book.id === id);
-        if (!book) {
-            throw new NotFoundException(`Book with ID ${id} not found`);
-        }
-        return book;
-    }
-
-    create(createBookDto: Partial<Book>): Book {
-        const book = new Book({
-            ...createBookDto,
-            id: this.nextId++,
-            available: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+    async onModuleInit() {
+        this.pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
         });
-        this.books.push(book);
-        return book;
+
+        try {
+            const client = await this.pool.connect();
+            console.log('✅ Connexion PostgreSQL établie');
+            client.release();
+        } catch (error) {
+            console.error('❌ Erreur connexion PostgreSQL:', error);
+        }
     }
 
-    update(id: number, updateBookDto: Partial<Book>): Book {
-        const bookIndex = this.books.findIndex(book => book.id === id);
-        if (bookIndex === -1) {
+    async findAll(): Promise<Book[]> {
+        const query = 'SELECT * FROM books ORDER BY created_at DESC';
+        const result = await this.pool.query(query);
+        return result.rows.map(row => new Book(row));
+    }
+
+    async findOne(id: number): Promise<Book> {
+        const query = 'SELECT * FROM books WHERE id = $1';
+        const result = await this.pool.query(query, [id]);
+
+        if (result.rows.length === 0) {
             throw new NotFoundException(`Book with ID ${id} not found`);
         }
 
-        this.books[bookIndex] = {
-            ...this.books[bookIndex],
-            ...updateBookDto,
-            updatedAt: new Date(),
-        };
-
-        return this.books[bookIndex];
+        return new Book(result.rows[0]);
     }
 
-    remove(id: number): void {
-        const bookIndex = this.books.findIndex(book => book.id === id);
-        if (bookIndex === -1) {
+    async create(createBookDto: any): Promise<Book> {
+        try {
+            // Utiliser les VRAIS noms de colonnes PostgreSQL (snake_case)
+            const query = `
+        INSERT INTO books (title, author, isbn, publication_year, genre, available)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `;
+
+            const values = [
+                createBookDto.title,
+                createBookDto.author,
+                createBookDto.isbn || null,
+                createBookDto.publicationYear || null, // camelCase vers snake_case
+                createBookDto.genre || null,
+                createBookDto.available ?? true
+            ];
+
+            console.log('📝 Insertion:', { values });
+            const result = await this.pool.query(query, values);
+            console.log('✅ Livre créé:', result.rows[0]);
+
+            return new Book(result.rows[0]);
+        } catch (error) {
+            console.error('❌ Erreur CREATE:', error.message);
+            throw error;
+        }
+    }
+
+    async update(id: number, updateBookDto: any): Promise<Book> {
+        try {
+            const fields: string[] = [];
+            const values: any[] = [];
+            let paramIndex = 1;
+
+            if (updateBookDto.title !== undefined) {
+                fields.push(`title = $${paramIndex}`);
+                values.push(updateBookDto.title);
+                paramIndex++;
+            }
+            if (updateBookDto.author !== undefined) {
+                fields.push(`author = $${paramIndex}`);
+                values.push(updateBookDto.author);
+                paramIndex++;
+            }
+            if (updateBookDto.isbn !== undefined) {
+                fields.push(`isbn = $${paramIndex}`);
+                values.push(updateBookDto.isbn);
+                paramIndex++;
+            }
+            if (updateBookDto.publicationYear !== undefined) {
+                fields.push(`publication_year = $${paramIndex}`); // ← snake_case
+                values.push(updateBookDto.publicationYear);
+                paramIndex++;
+            }
+            if (updateBookDto.genre !== undefined) {
+                fields.push(`genre = $${paramIndex}`);
+                values.push(updateBookDto.genre);
+                paramIndex++;
+            }
+            if (updateBookDto.available !== undefined) {
+                fields.push(`available = $${paramIndex}`);
+                values.push(updateBookDto.available);
+                paramIndex++;
+            }
+
+            if (fields.length === 0) {
+                return this.findOne(id);
+            }
+
+            fields.push('updated_at = CURRENT_TIMESTAMP'); // ← snake_case
+            values.push(id);
+
+            const query = `
+        UPDATE books 
+        SET ${fields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+            const result = await this.pool.query(query, values);
+
+            if (result.rows.length === 0) {
+                throw new NotFoundException(`Book with ID ${id} not found`);
+            }
+
+            return new Book(result.rows[0]);
+        } catch (error) {
+            console.error('❌ Erreur UPDATE:', error.message);
+            throw error;
+        }
+    }
+
+    async remove(id: number): Promise<void> {
+        const query = 'DELETE FROM books WHERE id = $1';
+        const result = await this.pool.query(query, [id]);
+
+        if (result.rowCount === 0) {
             throw new NotFoundException(`Book with ID ${id} not found`);
         }
-        this.books.splice(bookIndex, 1);
     }
 }

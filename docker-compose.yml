@@ -1,11 +1,131 @@
-version: '3.8'
+# docker-compose.yml - VERSION COMPLÈTE TP4
 services:
+  # === BASE DE DONNÉES ===
+  postgres:
+    image: postgres:15-alpine
+    container_name: biblioflow-postgres
+    environment:
+      POSTGRES_DB: biblioflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - biblioflow_backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d biblioflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: biblioflow-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: mongodb_root_password
+      MONGO_INITDB_DATABASE: biblioflow_logs
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - biblioflow_backend
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # === BACKEND API ===
   backend:
-    build: ./cour-docker-backend
+    build:
+      context: ./biblioflow-backend
+      dockerfile: Dockerfile.dev
+    container_name: biblioflow-backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/biblioflow
+      MONGODB_URL: mongodb://root:mongodb_root_password@mongodb:27017/biblioflow_logs?authSource=admin
+      JWT_SECRET: dev-secret-key-change-in-production
+      CORS_ORIGIN: http://localhost:4200
+    volumes:
+      - ./biblioflow-backend/src:/usr/src/app/src
+      - ./biblioflow-backend/package.json:/usr/src/app/package.json
     ports:
       - "3000:3000"
+    networks:
+      - biblioflow_backend
+      - biblioflow_frontend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/books"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
+  # === FRONTEND ===
   frontend:
-    build: ./CourDocker
+    build:
+      context: ./biblioflow-frontend
+      target: dev
+    container_name: biblioflow-frontend
+    environment:
+      CHOKIDAR_USEPOLLING: 1
+      API_URL: http://backend:3000
+    volumes:
+      - ./biblioflow-frontend/src:/app/src
+      - ./biblioflow-frontend/angular.json:/app/angular.json
     ports:
-      - "8080:80"
+      - "4200:4200"
+    networks:
+      - biblioflow_frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # === PROXY NGINX (optionnel) ===
+  nginx:
+    image: nginx:alpine
+    container_name: biblioflow-nginx
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    networks:
+      - biblioflow_frontend
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+
+networks:
+  biblioflow_frontend:
+    driver: bridge
+    name: biblioflow_frontend
+  biblioflow_backend:
+    driver: bridge
+    name: biblioflow_backend
