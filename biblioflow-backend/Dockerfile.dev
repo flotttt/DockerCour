@@ -1,28 +1,53 @@
-FROM node:22-alpine AS development
-RUN apk add --no-cache bash curl
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-EXPOSE 3000
-CMD ["npm", "run", "start:dev"]
-FROM node:22-alpine AS build
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-FROM node:22-alpine AS production
+# ===== DOCKERFILE BACKEND DÉVELOPPEMENT =====
+
+FROM node:22-alpine
+
+# Installation des outils de développement
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    procps \
+    vim
+
+# Création d'un utilisateur non-root pour sécurité
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
+    adduser -S nestjs -u 1001 -G nodejs
+
+# Configuration globale npm pour le développement
+RUN npm config set fund false && \
+    npm config set audit-level moderate
+
 WORKDIR /usr/src/app
+
+# Copie des fichiers de dépendances
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-COPY --from=build /usr/src/app/dist ./dist
-COPY --from=build /usr/src/app/node_modules ./node_modules
+
+# Installation des dépendances (y compris dev)
+RUN npm ci
+
+# Copie du code source
+COPY . .
+
+# Changement de propriétaire vers l'utilisateur non-root
 RUN chown -R nestjs:nodejs /usr/src/app
+
+# Changement vers utilisateur non-root
 USER nestjs
+
+# Exposition du port de l'application
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+
+# Exposition du port de debugging Node.js
+EXPOSE 9230
+
+# Variables d'environnement pour le développement
+ENV NODE_ENV=development
+ENV DEBUG=biblioflow:*
+
+# Health check adapté au développement
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -f http://localhost:3000/books || exit 1
-CMD ["node", "dist/main"]
+
+# Commande par défaut (avec hot-reload)
+CMD ["npm", "run", "start:dev"]

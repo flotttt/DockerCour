@@ -1,4 +1,4 @@
-// src/books/books.service.ts - VERSION FINALE QUI MARCHE
+// src/books/books.service.ts - VERSION FINALE CORRIGÉE
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Pool } from 'pg';
 import { Book } from './entities/book.entity';
@@ -40,29 +40,37 @@ export class BooksService implements OnModuleInit {
 
     async create(createBookDto: any): Promise<Book> {
         try {
-            // Utiliser les VRAIS noms de colonnes PostgreSQL (snake_case)
+            // REQUÊTE CORRIGÉE - Utilise les VRAIS noms de colonnes PostgreSQL
             const query = `
-        INSERT INTO books (title, author, isbn, publication_year, genre, available)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
-      `;
+                INSERT INTO books (title, author, isbn, publication_year, genre, description, total_copies, available_copies)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING *
+            `;
 
             const values = [
                 createBookDto.title,
                 createBookDto.author,
                 createBookDto.isbn || null,
-                createBookDto.publicationYear || null, // camelCase vers snake_case
+                createBookDto.publicationYear || null,  // camelCase → snake_case
                 createBookDto.genre || null,
-                createBookDto.available ?? true
+                createBookDto.description || null,
+                createBookDto.totalCopies || 1,         // Nouveau champ
+                createBookDto.availableCopies || 1      // Nouveau champ
             ];
 
-            console.log('📝 Insertion:', { values });
+            console.log('📝 Insertion livre:', {
+                title: values[0],
+                author: values[1],
+                publication_year: values[3]
+            });
+
             const result = await this.pool.query(query, values);
-            console.log('✅ Livre créé:', result.rows[0]);
+            console.log('✅ Livre créé avec succès:', result.rows[0].id);
 
             return new Book(result.rows[0]);
         } catch (error) {
             console.error('❌ Erreur CREATE:', error.message);
+            console.error('❌ Détail:', error);
             throw error;
         }
     }
@@ -73,6 +81,7 @@ export class BooksService implements OnModuleInit {
             const values: any[] = [];
             let paramIndex = 1;
 
+            // Mapping correct des champs
             if (updateBookDto.title !== undefined) {
                 fields.push(`title = $${paramIndex}`);
                 values.push(updateBookDto.title);
@@ -89,7 +98,7 @@ export class BooksService implements OnModuleInit {
                 paramIndex++;
             }
             if (updateBookDto.publicationYear !== undefined) {
-                fields.push(`publication_year = $${paramIndex}`); // ← snake_case
+                fields.push(`publication_year = $${paramIndex}`);  // ← Mapping correct
                 values.push(updateBookDto.publicationYear);
                 paramIndex++;
             }
@@ -98,9 +107,19 @@ export class BooksService implements OnModuleInit {
                 values.push(updateBookDto.genre);
                 paramIndex++;
             }
-            if (updateBookDto.available !== undefined) {
-                fields.push(`available = $${paramIndex}`);
-                values.push(updateBookDto.available);
+            if (updateBookDto.description !== undefined) {
+                fields.push(`description = $${paramIndex}`);
+                values.push(updateBookDto.description);
+                paramIndex++;
+            }
+            if (updateBookDto.totalCopies !== undefined) {
+                fields.push(`total_copies = $${paramIndex}`);
+                values.push(updateBookDto.totalCopies);
+                paramIndex++;
+            }
+            if (updateBookDto.availableCopies !== undefined) {
+                fields.push(`available_copies = $${paramIndex}`);
+                values.push(updateBookDto.availableCopies);
                 paramIndex++;
             }
 
@@ -108,15 +127,15 @@ export class BooksService implements OnModuleInit {
                 return this.findOne(id);
             }
 
-            fields.push('updated_at = CURRENT_TIMESTAMP'); // ← snake_case
+            fields.push('updated_at = CURRENT_TIMESTAMP');
             values.push(id);
 
             const query = `
-        UPDATE books 
-        SET ${fields.join(', ')}
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
+                UPDATE books
+                SET ${fields.join(', ')}
+                WHERE id = $${paramIndex}
+                    RETURNING *
+            `;
 
             const result = await this.pool.query(query, values);
 

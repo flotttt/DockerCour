@@ -1,10 +1,13 @@
-print('🚀 Initialisation de la base MongoDB BiblioFlow');
+// ===== INITIALISATION MONGODB POUR BIBLIOFLOW =====
+print('🚀 Initialisation de MongoDB BiblioFlow...');
 
+// Connexion à la base de données des logs
 db = db.getSiblingDB('biblioflow_logs');
 
+// Création de l'utilisateur applicatif
 db.createUser({
     user: 'biblioflow_app',
-    pwd: 'biblioflow_logs_password',
+    pwd: 'biblioflow_mongodb_secure_password_2024',
     roles: [
         {
             role: 'readWrite',
@@ -13,6 +16,7 @@ db.createUser({
     ]
 });
 
+// ===== COLLECTION DES LOGS API =====
 db.createCollection('api_logs', {
     validator: {
         $jsonSchema: {
@@ -40,6 +44,22 @@ db.createCollection('api_logs', {
                     bsonType: 'string',
                     description: 'ID utilisateur (optionnel)'
                 },
+                endpoint: {
+                    bsonType: 'string',
+                    description: 'Endpoint API appelé'
+                },
+                method: {
+                    bsonType: 'string',
+                    description: 'Méthode HTTP'
+                },
+                statusCode: {
+                    bsonType: 'int',
+                    description: 'Code de statut HTTP'
+                },
+                responseTime: {
+                    bsonType: 'int',
+                    description: 'Temps de réponse en ms'
+                },
                 metadata: {
                     bsonType: 'object',
                     description: 'Métadonnées additionnelles'
@@ -53,58 +73,88 @@ db.createCollection('api_logs', {
     }
 });
 
+// ===== COLLECTION DES ACTIVITÉS UTILISATEUR =====
 db.createCollection('user_activities', {
     validator: {
         $jsonSchema: {
             bsonType: 'object',
             required: ['timestamp', 'userId', 'action', 'resource'],
             properties: {
-                timestamp: {
-                    bsonType: 'date'
-                },
-                userId: {
-                    bsonType: 'string'
-                },
+                timestamp: { bsonType: 'date' },
+                userId: { bsonType: 'string' },
+                username: { bsonType: 'string' },
                 action: {
                     bsonType: 'string',
-                    enum: ['login', 'logout', 'borrow_book', 'return_book', 'search', 'view_profile', 'update_profile']
+                    enum: ['login', 'logout', 'register', 'borrow_book', 'return_book', 'search', 'view_profile', 'update_profile', 'admin_action']
                 },
-                resource: {
-                    bsonType: 'string'
-                },
-                ipAddress: {
-                    bsonType: 'string'
-                },
-                userAgent: {
-                    bsonType: 'string'
-                },
-                details: {
-                    bsonType: 'object'
-                }
+                resource: { bsonType: 'string' },
+                resourceId: { bsonType: 'string' },
+                ipAddress: { bsonType: 'string' },
+                userAgent: { bsonType: 'string' },
+                success: { bsonType: 'bool' },
+                details: { bsonType: 'object' }
             }
         }
     }
 });
 
+// ===== COLLECTION DES ERREURS =====
+db.createCollection('error_logs', {
+    validator: {
+        $jsonSchema: {
+            bsonType: 'object',
+            required: ['timestamp', 'level', 'message', 'service'],
+            properties: {
+                timestamp: { bsonType: 'date' },
+                level: { bsonType: 'string' },
+                message: { bsonType: 'string' },
+                service: { bsonType: 'string' },
+                stack: { bsonType: 'string' },
+                userId: { bsonType: 'string' },
+                endpoint: { bsonType: 'string' },
+                requestBody: { bsonType: 'object' },
+                errorCode: { bsonType: 'string' }
+            }
+        }
+    }
+});
+
+// ===== INDEX POUR LES PERFORMANCES =====
+// Index pour api_logs
 db.api_logs.createIndex({ timestamp: -1 });
 db.api_logs.createIndex({ level: 1, timestamp: -1 });
 db.api_logs.createIndex({ service: 1, timestamp: -1 });
+db.api_logs.createIndex({ userId: 1, timestamp: -1 });
+db.api_logs.createIndex({ endpoint: 1, timestamp: -1 });
 
+// Index pour user_activities
 db.user_activities.createIndex({ timestamp: -1 });
 db.user_activities.createIndex({ userId: 1, timestamp: -1 });
 db.user_activities.createIndex({ action: 1, timestamp: -1 });
+db.user_activities.createIndex({ resource: 1, timestamp: -1 });
 
+// Index pour error_logs
+db.error_logs.createIndex({ timestamp: -1 });
+db.error_logs.createIndex({ level: 1, timestamp: -1 });
+db.error_logs.createIndex({ service: 1, timestamp: -1 });
+
+// ===== DONNÉES DE TEST =====
 print('📝 Insertion de logs de test...');
 
 db.api_logs.insertMany([
     {
         timestamp: new Date(),
         level: 'info',
-        message: 'Application started successfully',
+        message: 'BiblioFlow application started successfully',
         service: 'biblioflow-backend',
+        endpoint: '/health',
+        method: 'GET',
+        statusCode: 200,
+        responseTime: 15,
         metadata: {
             version: '1.0.0',
-            environment: 'development'
+            environment: 'development',
+            nodeVersion: process.version
         }
     },
     {
@@ -113,18 +163,20 @@ db.api_logs.insertMany([
         message: 'Database connection established',
         service: 'biblioflow-backend',
         metadata: {
-            database: 'postgres',
+            database: 'postgresql',
+            host: 'postgres',
             connectionPool: 10
         }
     },
     {
         timestamp: new Date(),
-        level: 'warn',
-        message: 'High memory usage detected',
+        level: 'info',
+        message: 'MongoDB logging system initialized',
         service: 'biblioflow-backend',
         metadata: {
-            memoryUsage: '85%',
-            threshold: '80%'
+            database: 'mongodb',
+            host: 'mongodb',
+            collections: ['api_logs', 'user_activities', 'error_logs']
         }
     }
 ]);
@@ -132,30 +184,41 @@ db.api_logs.insertMany([
 db.user_activities.insertMany([
     {
         timestamp: new Date(),
-        userId: 'john.doe',
+        userId: 'admin',
+        username: 'admin',
         action: 'login',
         resource: '/auth/login',
         ipAddress: '192.168.1.100',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        userAgent: 'BiblioFlow-Frontend/1.0.0',
+        success: true,
         details: {
             loginMethod: 'email',
-            successful: true
+            role: 'admin'
         }
     },
     {
         timestamp: new Date(),
-        userId: 'john.doe',
+        userId: 'student',
+        username: 'student',
         action: 'search',
         resource: '/books/search',
-        ipAddress: '192.168.1.100',
+        resourceId: 'clean code',
+        ipAddress: '192.168.1.101',
+        success: true,
         details: {
             query: 'clean code',
-            resultsCount: 2
+            resultsCount: 2,
+            category: 'programming'
         }
     }
 ]);
 
+// ===== FINALISATION =====
 print('✅ Initialisation MongoDB terminée avec succès!');
 print('📊 Collections créées:');
 print('  - api_logs: ' + db.api_logs.countDocuments() + ' documents');
 print('  - user_activities: ' + db.user_activities.countDocuments() + ' documents');
+print('  - error_logs: ' + db.error_logs.countDocuments() + ' documents');
+print('👤 Utilisateur applicatif créé: biblioflow_app');
+print('🔗 Base de données: biblioflow_logs');
+print('🚀 MongoDB prêt pour BiblioFlow!');
