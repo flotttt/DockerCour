@@ -16,6 +16,13 @@ pipeline {
             }
         }
 
+        stage('Cleanup') {
+            steps {
+                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml down -v || true'
+                sh 'docker system prune -f || true'
+            }
+        }
+
         stage('Prepare .env') {
             steps {
                 sh 'cp .env.example .env || echo "Using existing .env"'
@@ -24,13 +31,21 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml build'
+                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml build --no-cache'
             }
         }
 
         stage('Deploy') {
             steps {
                 sh 'docker-compose -f docker-compose.yml -f compose.ci.yml up -d'
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                sh 'sleep 30'
+                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml ps'
+                sh 'curl -f http://localhost:80 || echo "Frontend check failed"'
             }
         }
     }
