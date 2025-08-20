@@ -11,7 +11,7 @@ pipeline {
         }
         stage('Run Tests') {
             steps {
-                sh 'docker-compose -f docker-compose.test.yml run --rm frontend npm test'
+                sh 'docker-compose -f docker-compose.test.yml run --rm frontend npm run test -- --watch=false --browsers=ChromeHeadless'
             }
         }
     }

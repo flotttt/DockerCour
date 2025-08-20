@@ -12,6 +12,7 @@ services:
       - "4201:4200"
     environment:
       - NODE_ENV=test
+      - CI=true
     networks:
       - jenkins_test_frontend
 
