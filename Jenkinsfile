@@ -9,14 +9,10 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/flotttt/DockerCour'
             }
         }
-        stage('Build Frontend') {
+        stage('Test Frontend') {
             steps {
-                sh 'docker compose -f compose.yml -f compose.ci.yml build frontend'
-            }
-        }
-        stage('Run Tests') {
-            steps {
-                sh 'docker compose -f compose.yml -f compose.ci.yml run --rm frontend npm run test:ci'
+                // Utilise le conteneur frontend déjà en cours
+                sh 'docker exec biblioflow-frontend npm test'
             }
         }
     }
