@@ -9,6 +9,11 @@ RUN npm ci --cache /tmp/empty-cache && npm cache clean --force
 
 # ===== STAGE DÉVELOPPEMENT =====
 FROM base AS dev
+# Installation de Chrome pour les tests
+RUN apk add --no-cache chromium
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/chromium-browser
+
 # Installation des dépendances de développement
 RUN npm ci
 COPY . .
