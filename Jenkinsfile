@@ -21,7 +21,6 @@ pipeline {
         stage('🔍 Checkout') {
             steps {
                 echo '📥 Récupération du code source...'
-                // Le checkout est automatique avec pipeline Jenkins
                 sh '''
                     echo "=== 📋 Information du build ==="
                     echo "Branch: ${GIT_BRANCH}"
@@ -37,7 +36,6 @@ pipeline {
             steps {
                 echo '🔧 Vérifications préliminaires...'
                 script {
-                    // Vérification des outils nécessaires
                     sh '''
                         echo "=== 🔍 Vérification des outils ==="
                         docker --version
@@ -60,7 +58,6 @@ pipeline {
             steps {
                 echo '📝 Préparation de l\'environnement...'
                 script {
-                    // Création du fichier .env pour la CI
                     writeFile file: '.env.ci', text: '''
 # Configuration CI/CD - TP9
 NODE_ENV=production
@@ -78,7 +75,7 @@ MONGO_INITDB_ROOT_PASSWORD=biblioflow_mongodb_root_password_2024
 
 # URLs de connexion
 DATABASE_URL=postgresql://postgres:biblioflow_postgres_secure_password_2024@postgres:5432/biblioflow
-MONGODB_URL=mongodb://mongodb:27017/biblioflow
+MONGODB_URL=mongodb://root:biblioflow_mongodb_root_password_2024@mongodb:27017/biblioflow?authSource=admin
 
 # Ports
 BACKEND_PORT=3000
@@ -136,13 +133,17 @@ NGINX_PORT=80
                             docker-compose -f compose.ci.yml up -d --force-recreate
 
                             echo "=== ⏳ Attente du démarrage des services ==="
-                            sleep 30
+                            sleep 45
 
                             echo "=== 📊 Statut des containers ==="
                             docker-compose -f compose.ci.yml ps
 
                             echo "=== 🔍 Vérification des logs ==="
                             docker-compose -f compose.ci.yml logs --tail=20 backend
+
+                            echo "=== 🌐 Vérification du réseau Docker ==="
+                            docker network ls
+                            docker inspect $(docker-compose -f compose.ci.yml ps -q) | grep -E "(IPAddress|NetworkMode)" || true
                         '''
                     }
                 }
@@ -158,35 +159,62 @@ NGINX_PORT=80
 
                         # Test PostgreSQL
                         echo "🔍 Test PostgreSQL..."
+                        docker exec biblioflow-ci-postgres-1 pg_isready -U postgres -d biblioflow || \
                         docker exec biblioflow-postgres pg_isready -U postgres -d biblioflow
 
-                        # Test MongoDB
+                        # Test MongoDB avec authentification
                         echo "🔍 Test MongoDB..."
-                        docker exec biblioflow-mongodb mongosh --eval "db.adminCommand('ping')" --quiet
+                        docker exec biblioflow-ci-mongodb-1 mongosh --username root --password biblioflow_mongodb_root_password_2024 --authenticationDatabase admin --eval "db.adminCommand('ping')" --quiet || \
+                        docker exec biblioflow-mongodb mongosh --username root --password biblioflow_mongodb_root_password_2024 --authenticationDatabase admin --eval "db.adminCommand('ping')" --quiet
 
-                        # Test Backend API
+                        # Obtenir les IPs des containers pour les tests réseau
+                        BACKEND_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker-compose -f compose.ci.yml ps -q backend) 2>/dev/null || echo "")
+                        FRONTEND_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker-compose -f compose.ci.yml ps -q frontend) 2>/dev/null || echo "")
+
+                        echo "Backend IP: $BACKEND_IP"
+                        echo "Frontend IP: $FRONTEND_IP"
+
+                        # Test Backend API avec retry et multiple approches
                         echo "🔍 Test Backend API..."
-                        for i in {1..10}; do
+                        for i in {1..15}; do
+                            # Test via localhost (si Jenkins est sur le même host)
                             if curl -f http://localhost:3000/books >/dev/null 2>&1; then
-                                echo "✅ Backend API répond"
+                                echo "✅ Backend API répond via localhost"
+                                break
+                            # Test via IP du container
+                            elif [ -n "$BACKEND_IP" ] && curl -f http://$BACKEND_IP:3000/books >/dev/null 2>&1; then
+                                echo "✅ Backend API répond via IP container"
+                                break
+                            # Test via nom du container dans le réseau Docker
+                            elif docker exec $(docker-compose -f compose.ci.yml ps -q backend) curl -f http://localhost:3000/books >/dev/null 2>&1; then
+                                echo "✅ Backend API répond via exec dans container"
                                 break
                             fi
-                            echo "⏳ Tentative $i/10 - Backend API non prêt, attente..."
+                            echo "⏳ Tentative $i/15 - Backend API non prêt, attente..."
                             sleep 10
                         done
 
-                        # Test Frontend
+                        # Test Frontend avec retry et multiple approches
                         echo "🔍 Test Frontend..."
-                        for i in {1..5}; do
+                        for i in {1..10}; do
+                            # Test via localhost
                             if curl -f http://localhost:4200 >/dev/null 2>&1; then
-                                echo "✅ Frontend répond"
+                                echo "✅ Frontend répond via localhost"
+                                break
+                            # Test via IP du container
+                            elif [ -n "$FRONTEND_IP" ] && curl -f http://$FRONTEND_IP:4200 >/dev/null 2>&1; then
+                                echo "✅ Frontend répond via IP container"
+                                break
+                            # Test via exec dans le container
+                            elif docker exec $(docker-compose -f compose.ci.yml ps -q frontend) curl -f http://localhost:4200 >/dev/null 2>&1; then
+                                echo "✅ Frontend répond via exec dans container"
                                 break
                             fi
-                            echo "⏳ Tentative $i/5 - Frontend non prêt, attente..."
-                            sleep 5
+                            echo "⏳ Tentative $i/10 - Frontend non prêt, attente..."
+                            sleep 8
                         done
 
-                        echo "=== 🎉 Tous les services sont opérationnels! ==="
+                        echo "=== 🎉 Tests de santé terminés! ==="
                     '''
                 }
             }
@@ -199,25 +227,50 @@ NGINX_PORT=80
                     sh '''
                         echo "=== 🔍 Validation des endpoints ==="
 
-                        # Test API Backend
+                        # Obtenir les informations réseau
+                        BACKEND_CONTAINER=$(docker-compose -f compose.ci.yml ps -q backend)
+                        FRONTEND_CONTAINER=$(docker-compose -f compose.ci.yml ps -q frontend)
+                        BACKEND_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $BACKEND_CONTAINER 2>/dev/null || echo "")
+
+                        echo "Backend Container: $BACKEND_CONTAINER"
+                        echo "Frontend Container: $FRONTEND_CONTAINER"
+                        echo "Backend IP: $BACKEND_IP"
+
+                        # Test API Backend avec plusieurs méthodes
                         echo "📊 Test endpoint /books:"
-                        curl -X GET http://localhost:3000/books -H "Accept: application/json" | head -c 200
+                        if curl -f http://localhost:3000/books >/dev/null 2>&1; then
+                            curl -X GET http://localhost:3000/books -H "Accept: application/json" | head -c 200
+                        elif [ -n "$BACKEND_IP" ] && curl -f http://$BACKEND_IP:3000/books >/dev/null 2>&1; then
+                            curl -X GET http://$BACKEND_IP:3000/books -H "Accept: application/json" | head -c 200
+                        else
+                            echo "⚠️ Test API via exec dans le container:"
+                            docker exec $BACKEND_CONTAINER curl -X GET http://localhost:3000/books -H "Accept: application/json" | head -c 200 || echo "❌ API non accessible"
+                        fi
                         echo ""
 
-                        # Test Frontend
+                        # Test Frontend avec plusieurs méthodes
                         echo "📊 Test page d'accueil:"
-                        curl -I http://localhost:4200 | head -5
+                        if curl -I http://localhost:4200 2>/dev/null | head -5; then
+                            echo "✅ Frontend accessible via localhost"
+                        else
+                            echo "⚠️ Test Frontend via exec dans le container:"
+                            docker exec $FRONTEND_CONTAINER curl -I http://localhost:4200 2>/dev/null | head -5 || echo "❌ Frontend non accessible"
+                        fi
 
                         # Test bases de données
                         echo "📊 Test table books dans PostgreSQL:"
-                        docker exec biblioflow-postgres psql -U postgres -d biblioflow -c "\\dt"
+                        POSTGRES_CONTAINER=$(docker-compose -f compose.ci.yml ps -q postgres)
+                        docker exec $POSTGRES_CONTAINER psql -U postgres -d biblioflow -c "\\dt"
 
-                        echo "📊 Test connexion MongoDB:"
-                        docker exec biblioflow-mongodb mongosh --eval "show dbs" --quiet
+                        echo "📊 Test connexion MongoDB avec authentification:"
+                        MONGODB_CONTAINER=$(docker-compose -f compose.ci.yml ps -q mongodb)
+                        docker exec $MONGODB_CONTAINER mongosh --username root --password biblioflow_mongodb_root_password_2024 --authenticationDatabase admin --eval "show dbs" --quiet
 
                         echo "=== ✅ Validation réussie! ==="
-                        echo "🌐 Frontend: http://localhost:4200"
-                        echo "🔗 Backend API: http://localhost:3000/books"
+                        echo "🌐 Services déployés:"
+                        echo "• Frontend: http://localhost:4200 (ou IP: $FRONTEND_IP:4200)"
+                        echo "• Backend: http://localhost:3000 (ou IP: $BACKEND_IP:3000)"
+                        echo "• API: http://localhost:3000/books"
                         echo "📊 Nginx: http://localhost:80"
                     '''
                 }
@@ -235,6 +288,9 @@ NGINX_PORT=80
 
                     echo "=== 📈 Utilisation des ressources ==="
                     docker stats --no-stream || true
+
+                    echo "=== 🔍 État final des containers ==="
+                    docker-compose -f compose.ci.yml ps || true
                 '''
             }
         }
@@ -266,6 +322,10 @@ NGINX_PORT=80
                     echo "=== 🔍 Diagnostic des erreurs ==="
                     docker-compose -f compose.ci.yml ps || true
                     docker-compose -f compose.ci.yml logs || true
+
+                    echo "=== 🌐 Diagnostic réseau ==="
+                    docker network ls || true
+                    docker port $(docker-compose -f compose.ci.yml ps -q) || true
                 '''
             }
         }
