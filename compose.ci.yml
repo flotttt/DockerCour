@@ -1,0 +1,5 @@
+services:
+  frontend:
+    environment:
+      - NODE_ENV=test
+    command: npm run test:ci

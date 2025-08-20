@@ -11,17 +11,12 @@ pipeline {
         }
         stage('Build Frontend') {
             steps {
-                dir('biblioflow-frontend') {
-                    sh 'npm install'
-                    sh 'npm run build'
-                }
+                sh 'docker compose -f compose.yml -f compose.ci.yml build frontend'
             }
         }
-        stage('Test Frontend') {
+        stage('Run Tests') {
             steps {
-                dir('biblioflow-frontend') {
-                    sh 'npm test'
-                }
+                sh 'docker compose -f compose.yml -f compose.ci.yml run --rm frontend npm run test:ci'
             }
         }
     }
