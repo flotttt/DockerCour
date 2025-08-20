@@ -1,26 +1,52 @@
-# compose.ci.yml - Configuration pour CI/CD (SANS bind mounts)
+# compose.ci.yml - Configuration COMPLETE pour CI/CD
 services:
   frontend:
     build:
       context: ./biblioflow-frontend
       dockerfile: Dockerfile
       target: production
-    volumes:
-      - frontend_node_modules_ci:/app/node_modules  # Seulement les volumes nécessaires
+    container_name: biblioflow-frontend
     environment:
       - NODE_ENV=production
+      - API_URL=http://backend:3000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      timeout: 10s
+      interval: 30s
+      retries: 3
+      start_period: 10s
+    networks:
+      - biblioflow_frontend
+    ports:
+      - "4200:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
 
   backend:
     build:
       context: ./biblioflow-backend
       dockerfile: Dockerfile
       target: production
-    volumes:
-      - backend_node_modules_ci:/usr/src/app/node_modules  # Seulement les volumes nécessaires
+    container_name: biblioflow-backend
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://biblioflow:biblioflow@postgres:5432/biblioflow
+      - DATABASE_URL=postgresql://postgres:biblioflow_postgres_secure_password_2024@postgres:5432/biblioflow
       - MONGODB_URL=mongodb://mongodb:27017/biblioflow
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/books"]
+      timeout: 10s
+      interval: 30s
+      retries: 3
+      start_period: 60s
+    networks:
+      - biblioflow_backend
+      - biblioflow_frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,20 +54,69 @@ services:
         condition: service_healthy
 
   postgres:
+    image: postgres:15-alpine
+    container_name: biblioflow-postgres
+    environment:
+      - POSTGRES_DB=biblioflow
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=biblioflow_postgres_secure_password_2024
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d biblioflow"]
+      timeout: 5s
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - biblioflow_backend
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
     volumes:
       - postgres_data_ci:/var/lib/postgresql/data
 
   mongodb:
+    image: mongo:7-jammy
+    container_name: biblioflow-mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=biblioflow_logs
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=biblioflow_mongodb_root_password_2024
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      timeout: 5s
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - biblioflow_backend
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
     volumes:
       - mongodb_data_ci:/data/db
 
   nginx:
-    volumes:
-      - nginx_logs_ci:/var/log/nginx
+    image: nginx:alpine
+    container_name: biblioflow-nginx
+    networks:
+      - biblioflow_frontend
+      - biblioflow_backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+
+networks:
+  biblioflow_frontend:
+    driver: bridge
+  biblioflow_backend:
+    driver: bridge
 
 volumes:
   postgres_data_ci:
   mongodb_data_ci:
-  frontend_node_modules_ci:
-  backend_node_modules_ci:
-  nginx_logs_ci:
