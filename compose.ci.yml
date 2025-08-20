@@ -1,5 +1,23 @@
 services:
   frontend:
+    build:
+      context: ./biblioflow-frontend
+      dockerfile: Dockerfile.dev
+      target: dev
+    container_name: jenkins-test-frontend
+    volumes:
+      - ./biblioflow-frontend:/usr/src/app
+      - jenkins_test_frontend_node_modules:/usr/src/app/node_modules
+    ports:
+      - "4201:4200"
     environment:
       - NODE_ENV=test
-    command: npm run test:ci
+    networks:
+      - jenkins_test_frontend
+
+volumes:
+  jenkins_test_frontend_node_modules:
+
+networks:
+  jenkins_test_frontend:
+    driver: bridge
