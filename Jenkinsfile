@@ -41,7 +41,7 @@ pipeline {
                     sh '''
                         echo "=== 🔍 Vérification des outils ==="
                         docker --version
-                        docker compose version
+                        docker-compose --version
 
                         echo "=== 📁 Vérification de la structure du projet ==="
                         test -f compose.ci.yml || (echo "❌ compose.ci.yml manquant!" && exit 1)
@@ -91,7 +91,7 @@ NGINX_PORT=80
                         cat .env.ci
 
                         echo "=== 🧹 Nettoyage des containers précédents ==="
-                        docker compose -f compose.ci.yml down --remove-orphans --volumes || true
+                        docker-compose -f compose.ci.yml down --remove-orphans --volumes || true
                         docker system prune -f || true
                     '''
                 }
@@ -105,7 +105,7 @@ NGINX_PORT=80
                     script {
                         sh '''
                             echo "=== 🏗️ Build des images avec cache bust ==="
-                            docker compose -f compose.ci.yml build --no-cache --force-rm
+                            docker-compose -f compose.ci.yml build --no-cache --force-rm
 
                             echo "=== 📊 Vérification des images créées ==="
                             docker images | grep -E "(biblioflow|dockertp)"
@@ -119,7 +119,7 @@ NGINX_PORT=80
                 failure {
                     echo '❌ Échec du build - Nettoyage...'
                     sh '''
-                        docker compose -f compose.ci.yml down --remove-orphans || true
+                        docker-compose -f compose.ci.yml down --remove-orphans || true
                         docker system prune -f || true
                     '''
                 }
@@ -133,16 +133,16 @@ NGINX_PORT=80
                     script {
                         sh '''
                             echo "=== 🚀 Lancement de l'stack complète ==="
-                            docker compose -f compose.ci.yml up -d --force-recreate
+                            docker-compose -f compose.ci.yml up -d --force-recreate
 
                             echo "=== ⏳ Attente du démarrage des services ==="
                             sleep 30
 
                             echo "=== 📊 Statut des containers ==="
-                            docker compose -f compose.ci.yml ps
+                            docker-compose -f compose.ci.yml ps
 
                             echo "=== 🔍 Vérification des logs ==="
-                            docker compose -f compose.ci.yml logs --tail=20 backend
+                            docker-compose -f compose.ci.yml logs --tail=20 backend
                         '''
                     }
                 }
@@ -231,7 +231,7 @@ NGINX_PORT=80
             script {
                 sh '''
                     echo "=== 📊 Logs finaux ==="
-                    docker compose -f compose.ci.yml logs --tail=50 || true
+                    docker-compose -f compose.ci.yml logs --tail=50 || true
 
                     echo "=== 📈 Utilisation des ressources ==="
                     docker stats --no-stream || true
@@ -264,8 +264,8 @@ NGINX_PORT=80
             script {
                 sh '''
                     echo "=== 🔍 Diagnostic des erreurs ==="
-                    docker compose -f compose.ci.yml ps || true
-                    docker compose -f compose.ci.yml logs || true
+                    docker-compose -f compose.ci.yml ps || true
+                    docker-compose -f compose.ci.yml logs || true
                 '''
             }
         }
@@ -274,7 +274,7 @@ NGINX_PORT=80
             script {
                 sh '''
                     # Arrêt des services (garder les volumes pour les données)
-                    docker compose -f compose.ci.yml down || true
+                    docker-compose -f compose.ci.yml down || true
 
                     # Nettoyage optionnel des images (décommenter si besoin)
                     # docker system prune -f || true
