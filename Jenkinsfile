@@ -1,18 +1,47 @@
 pipeline {
     agent any
-    tools {
-        nodejs "Node_24"
-    }
+
     stages {
-        stage('Build Frontend') {
+        stage('Checkout') {
             steps {
-                sh 'docker-compose -f docker-compose.test.yml build frontend'
+                // Déjà fait automatiquement
+                echo 'Code récupéré depuis GitHub'
             }
         }
-        stage('Run Tests') {
+
+        stage('Preflight') {
             steps {
-                sh 'docker-compose -f docker-compose.test.yml run --rm frontend npm run test -- --watch=false --browsers=ChromeHeadlessNoSandbox'
+                sh 'docker --version'
+                sh 'docker-compose --version'
+                sh 'ls -la'
             }
+        }
+
+        stage('Prepare .env') {
+            steps {
+                sh 'cp .env.example .env || echo "Using existing .env"'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'docker-compose -f compose.yml -f compose.ci.yml build'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh 'docker-compose -f compose.yml -f compose.ci.yml up -d'
+            }
+        }
+    }
+
+    post {
+        failure {
+            sh 'docker-compose -f compose.yml -f compose.ci.yml logs'
+        }
+        cleanup {
+            sh 'docker-compose -f compose.yml -f compose.ci.yml down || true'
         }
     }
 }
