@@ -16,18 +16,10 @@ pipeline {
             }
         }
 
-        stage('Debug Config') {
-            steps {
-                echo '=== Configuration finale Docker Compose ==='
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml config'
-                echo '=== Fin debug ==='
-            }
-        }
-
         stage('Aggressive Cleanup') {
             steps {
                 sh 'docker-compose -f docker-compose.yml down -v --remove-orphans || true'
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml down -v --remove-orphans || true'
+                sh 'docker-compose -f compose.ci.yml down -v --remove-orphans || true'
                 sh 'docker container prune -f || true'
                 sh 'docker volume prune -f || true'
                 sh 'docker system prune -f || true'
@@ -42,20 +34,20 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml build --no-cache --force-rm'
+                sh 'docker-compose -f compose.ci.yml build --no-cache --force-rm'
             }
         }
 
         stage('Deploy') {
             steps {
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml up -d --force-recreate'
+                sh 'docker-compose -f compose.ci.yml up -d --force-recreate'
             }
         }
 
         stage('Validate') {
             steps {
                 sh 'sleep 30'
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml ps'
+                sh 'docker-compose -f compose.ci.yml ps'
                 sh 'curl -f http://localhost:80 || echo "Frontend check failed"'
             }
         }
@@ -63,10 +55,10 @@ pipeline {
 
     post {
         failure {
-            sh 'docker-compose -f docker-compose.yml -f compose.ci.yml logs || true'
+            sh 'docker-compose -f compose.ci.yml logs || true'
         }
         cleanup {
-            sh 'docker-compose -f docker-compose.yml -f compose.ci.yml down || true'
+            sh 'docker-compose -f compose.ci.yml down || true'
         }
     }
 }
