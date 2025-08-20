@@ -16,13 +16,15 @@ pipeline {
             }
         }
 
-        stage('Aggressive Cleanup') {
+        stage('Aggressive Cleanup') {  // ← MODIFIEZ CE STAGE
             steps {
                 sh 'docker-compose -f docker-compose.yml down -v --remove-orphans || true'
                 sh 'docker-compose -f compose.ci.yml down -v --remove-orphans || true'
                 sh 'docker container prune -f || true'
                 sh 'docker volume prune -f || true'
                 sh 'docker system prune -f || true'
+                // AJOUTEZ CETTE LIGNE :
+                sh 'docker volume rm dockertp_postgres_data_ci dockertp_mongodb_data_ci || true'
             }
         }
 
@@ -41,13 +43,6 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh 'docker-compose -f compose.ci.yml up -d --force-recreate'
-                sh 'sleep 15'  // Attendre un peu
-                sh 'echo "=== Status des conteneurs ==="'
-                sh 'docker-compose -f compose.ci.yml ps'
-                sh 'echo "=== Logs du backend ==="'
-                sh 'docker-compose -f compose.ci.yml logs backend'
-                sh 'echo "=== Logs du frontend ==="'
-                sh 'docker-compose -f compose.ci.yml logs frontend'
             }
         }
 
