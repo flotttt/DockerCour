@@ -1,35 +1,49 @@
-// src/books/entities/book.entity.ts - VERSION FINALE
+// src/books/entities/book.entity.ts - VERSION CORRIGÉE
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+
+@Entity('books') // ✅ Décorateur pour créer la table 'books'
 export class Book {
+    @PrimaryGeneratedColumn() // ✅ Clé primaire auto-incrémentée
     id: number;
+
+    @Column({ type: 'varchar', length: 255 }) // ✅ Colonne obligatoire
     title: string;
+
+    @Column({ type: 'varchar', length: 255 }) // ✅ Colonne obligatoire
     author: string;
+
+    @Column({ type: 'varchar', length: 20, nullable: true }) // ✅ Colonne optionnelle
     isbn?: string;
+
+    @Column({ name: 'publication_year', type: 'int', nullable: true }) // ✅ Mapping snake_case
     publicationYear?: number;
+
+    @Column({ type: 'varchar', length: 100, nullable: true })
     genre?: string;
+
+    @Column({ type: 'text', nullable: true })
     description?: string;
+
+    @Column({ name: 'total_copies', type: 'int', default: 1 }) // ✅ Valeur par défaut
     totalCopies: number;
+
+    @Column({ name: 'available_copies', type: 'int', default: 1 })
     availableCopies: number;
-    available: boolean;  // Computed field
+
+    @CreateDateColumn({ name: 'created_at' }) // ✅ Timestamp automatique
     createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at' }) // ✅ Timestamp automatique
     updatedAt: Date;
 
-    constructor(data: any) {
-        this.id = data.id;
-        this.title = data.title;
-        this.author = data.author;
-        this.isbn = data.isbn;
-        this.genre = data.genre;
-        this.description = data.description;
+    // ✅ Getter computed (pas stocké en DB)
+    get available(): boolean {
+        return this.availableCopies > 0;
+    }
 
-        // Mapping snake_case vers camelCase
-        this.publicationYear = data.publication_year || data.publicationYear;
-        this.totalCopies = data.total_copies || data.totalCopies || 1;
-        this.availableCopies = data.available_copies || data.availableCopies || 1;
-
-        // Computed field : available si availableCopies > 0
-        this.available = this.availableCopies > 0;
-
-        this.createdAt = data.created_at ? new Date(data.created_at) : new Date();
-        this.updatedAt = data.updated_at ? new Date(data.updated_at) : new Date();
+    constructor(data?: Partial<Book>) {
+        if (data) {
+            Object.assign(this, data);
+        }
     }
 }
