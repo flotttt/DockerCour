@@ -16,12 +16,13 @@ pipeline {
             }
         }
 
-        stage('Cleanup') {
-            steps {
-                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml down -v || true'
-                sh 'docker system prune -f || true'
+            stage('Cleanup') {
+                steps {
+                    sh 'docker-compose down -v || true'
+                    sh 'docker volume prune -f || true'
+                    sh 'docker container prune -f || true'
+                }
             }
-        }
 
         stage('Prepare .env') {
             steps {
