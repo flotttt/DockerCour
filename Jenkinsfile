@@ -9,10 +9,19 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/flotttt/DockerCour'
             }
         }
+        stage('Build Frontend') {
+            steps {
+                dir('biblioflow-frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
         stage('Test Frontend') {
             steps {
-                sh 'echo "Docker non disponible - test simulé"'
-                sh 'ls -la'
+                dir('biblioflow-frontend') {
+                    sh 'npm test'
+                }
             }
         }
     }
