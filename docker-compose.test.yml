@@ -2,7 +2,7 @@ services:
   frontend:
     build:
       context: ./biblioflow-frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: jenkins-test-frontend
     volumes:
       - ./biblioflow-frontend:/usr/src/app
