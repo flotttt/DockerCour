@@ -16,6 +16,14 @@ pipeline {
             }
         }
 
+        stage('Debug Config') {
+            steps {
+                echo '=== Configuration finale Docker Compose ==='
+                sh 'docker-compose -f docker-compose.yml -f compose.ci.yml config'
+                echo '=== Fin debug ==='
+            }
+        }
+
         stage('Aggressive Cleanup') {
             steps {
                 sh 'docker-compose -f docker-compose.yml down -v --remove-orphans || true'
@@ -35,17 +43,6 @@ pipeline {
         stage('Build') {
             steps {
                 sh 'docker-compose -f docker-compose.yml -f compose.ci.yml build --no-cache --force-rm'
-            }
-        }
-
-        stage('Post-Build Cleanup') {
-            steps {
-                // Cleanup après le build pour virer les volumes bind mount
-                sh 'docker volume rm biblioflow_backend_node_modules || true'
-                sh 'docker volume rm biblioflow_frontend_node_modules || true'
-                sh 'docker volume rm biblioflow_postgres_logs || true'
-                sh 'docker volume rm biblioflow_mongodb_logs || true'
-                sh 'docker volume rm biblioflow_nginx_logs || true'
             }
         }
 
