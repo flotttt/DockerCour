@@ -42,7 +42,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Supprimer les fichiers par défaut et copier l'app
 RUN rm -rf /usr/share/nginx/html/*
-COPY --from=builder /app/dist/biblioflow-frontend /usr/share/nginx/html/
+COPY --from=builder /app/dist/biblioflow-frontend/browser /usr/share/nginx/html/
 
 # Vérification que index.html existe
 RUN ls -la /usr/share/nginx/html/ && \
