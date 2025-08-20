@@ -5,7 +5,8 @@ services:
       context: ./biblioflow-frontend
       dockerfile: Dockerfile
       target: production
-    volumes: []  # ← AJOUTER cette ligne !
+    volumes:
+      - frontend_node_modules_ci:/app/node_modules  # Seulement les volumes nécessaires
     environment:
       - NODE_ENV=production
 
@@ -14,7 +15,8 @@ services:
       context: ./biblioflow-backend
       dockerfile: Dockerfile
       target: production
-    volumes: []  # ← AJOUTER cette ligne !
+    volumes:
+      - backend_node_modules_ci:/usr/src/app/node_modules  # Seulement les volumes nécessaires
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://biblioflow:biblioflow@postgres:5432/biblioflow
@@ -34,10 +36,12 @@ services:
       - mongodb_data_ci:/data/db
 
   nginx:
-    volumes: []  # ← AJOUTER cette ligne !
-    environment:
-      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+    volumes:
+      - nginx_logs_ci:/var/log/nginx
 
 volumes:
   postgres_data_ci:
   mongodb_data_ci:
+  frontend_node_modules_ci:
+  backend_node_modules_ci:
+  nginx_logs_ci:
