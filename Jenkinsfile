@@ -6,12 +6,12 @@ pipeline {
     stages {
         stage('Build Frontend') {
             steps {
-                sh 'docker-compose -p jenkins-test -f docker-compose.yml build frontend'
+                sh 'docker-compose -f docker-compose.test.yml build frontend'
             }
         }
         stage('Run Tests') {
             steps {
-                sh 'docker-compose -p jenkins-test -f docker-compose.yml run --rm frontend npm test'
+                sh 'docker-compose -f docker-compose.test.yml run --rm frontend npm test'
             }
         }
     }
