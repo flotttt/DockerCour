@@ -41,6 +41,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh 'docker-compose -f compose.ci.yml up -d --force-recreate'
+                sh 'sleep 15'  // Attendre un peu
+                sh 'echo "=== Status des conteneurs ==="'
+                sh 'docker-compose -f compose.ci.yml ps'
+                sh 'echo "=== Logs du backend ==="'
+                sh 'docker-compose -f compose.ci.yml logs backend'
+                sh 'echo "=== Logs du frontend ==="'
+                sh 'docker-compose -f compose.ci.yml logs frontend'
             }
         }
 
