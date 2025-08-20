@@ -1,11 +1,11 @@
-# compose.ci.yml - Configuration pour CI/CD
+# compose.ci.yml - Configuration pour CI/CD (SANS bind mounts)
 services:
   frontend:
     build:
       context: ./biblioflow-frontend
       dockerfile: Dockerfile
-      target: production  # Mode prod pour CI
-    # Pas de volumes bind mount !
+      target: production  # Mode production pour CI
+    # PAS de volumes bind mount !
     environment:
       - NODE_ENV=production
 
@@ -13,19 +13,34 @@ services:
     build:
       context: ./biblioflow-backend
       dockerfile: Dockerfile
-    # Pas de volumes bind mount !
+      target: production  # Mode production pour CI
+    # PAS de volumes bind mount !
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://biblioflow:biblioflow@postgres:5432/biblioflow
+      - MONGODB_URL=mongodb://mongodb:27017/biblioflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
 
-  # Garder postgres et mongodb sans bind mounts
   postgres:
+    # Pas de bind mounts - seulement volumes Docker
     volumes:
-      - postgres_data_ci:/var/lib/postgresql/data  # Volume Docker, pas bind mount
+      - postgres_data_ci:/var/lib/postgresql/data
+      # Enlever les bind mounts des logs
 
   mongodb:
+    # Pas de bind mounts - seulement volumes Docker
     volumes:
       - mongodb_data_ci:/data/db
+      # Enlever les bind mounts des logs
+
+  nginx:
+    # Pas de bind mounts pour la config nginx en CI
+    environment:
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
 
 volumes:
   postgres_data_ci:
