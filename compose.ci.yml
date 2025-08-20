@@ -4,8 +4,8 @@ services:
     build:
       context: ./biblioflow-frontend
       dockerfile: Dockerfile
-      target: production  # Mode production pour CI
-    # PAS de volumes bind mount !
+      target: production
+    volumes: []  # ← AJOUTER cette ligne !
     environment:
       - NODE_ENV=production
 
@@ -13,8 +13,8 @@ services:
     build:
       context: ./biblioflow-backend
       dockerfile: Dockerfile
-      target: production  # Mode production pour CI
-    # PAS de volumes bind mount !
+      target: production
+    volumes: []  # ← AJOUTER cette ligne !
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://biblioflow:biblioflow@postgres:5432/biblioflow
@@ -26,19 +26,15 @@ services:
         condition: service_healthy
 
   postgres:
-    # Pas de bind mounts - seulement volumes Docker
     volumes:
       - postgres_data_ci:/var/lib/postgresql/data
-      # Enlever les bind mounts des logs
 
   mongodb:
-    # Pas de bind mounts - seulement volumes Docker
     volumes:
       - mongodb_data_ci:/data/db
-      # Enlever les bind mounts des logs
 
   nginx:
-    # Pas de bind mounts pour la config nginx en CI
+    volumes: []  # ← AJOUTER cette ligne !
     environment:
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
 
