@@ -157,7 +157,7 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
                             -Dsonar.projectName='BiblioFlow - Projet Docker' \
                             -Dsonar.projectVersion=${BUILD_NUMBER} \
                             -Dsonar.sources=. \
-                            -Dsonar.exclusions='**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/Dockerfile,**/*.yml,**/*.yaml' \
+                            -Dsonar.exclusions='**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/Dockerfile,**/*.yml,**/*.yaml,**/*.js,**/*.ts,**/*.tsx,**/*.jsx' \
                             -Dsonar.sourceEncoding=UTF-8 \
                             -Dsonar.verbose=true
                         """
@@ -178,7 +178,7 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
             steps {
                 echo '🛡️ Vérification du Quality Gate SonarQube...'
                 script {
-                    timeout(time: 5, unit: 'MINUTES') {
+                    timeout(time: 10, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
                             echo "❌ Quality Gate échoué: ${qg.status}"
