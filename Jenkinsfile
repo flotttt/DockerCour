@@ -157,7 +157,7 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
                             -Dsonar.projectName='BiblioFlow - Projet Docker' \
                             -Dsonar.projectVersion=${BUILD_NUMBER} \
                             -Dsonar.sources=. \
-                            -Dsonar.exclusions='**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/Dockerfile,**/*.yml,**/*.yaml,**/*.js,**/*.ts,**/*.tsx,**/*.jsx' \
+                            -Dsonar.exclusions='**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/Dockerfile,**/*.yml,**/*.yaml,**/CourDocker/**,**/cour-docker-backend/**' \
                             -Dsonar.sourceEncoding=UTF-8 \
                             -Dsonar.verbose=true
                         """
@@ -178,13 +178,11 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
             steps {
                 echo '🛡️ Vérification du Quality Gate SonarQube...'
                 script {
-                    timeout(time: 10, unit: 'MINUTES') {
+                    timeout(time: 2, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
                             echo "❌ Quality Gate échoué: ${qg.status}"
                             echo "Détails: ${qg}"
-                            // On peut choisir de continuer ou d'arrêter
-                            // error "Pipeline arrêté à cause du Quality Gate"
                             unstable("Quality Gate échoué mais pipeline continue")
                         } else {
                             echo "✅ Quality Gate réussi!"
