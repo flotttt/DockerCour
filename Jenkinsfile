@@ -19,7 +19,7 @@ pipeline {
 
     stages {
         stage('🔍 Checkout') {
-            steps {
+        stage('🔬 SonarQube Analysis') {
                 echo '📥 Récupération du code source...'
                 sh '''
                     echo "=== 📋 Information du build ==="
@@ -123,7 +123,25 @@ NGINX_PORT=80
             }
         }
 
-        stage('🔬 SonarQube Analysis') {
+        stage('🔍 Debug SonarScanner') {
+            steps {
+                echo '🔍 Debug des informations SonarScanner...'
+                script {
+                    echo "=== 🔧 Configuration Debug ==="
+                    echo "Workspace: ${env.WORKSPACE}"
+                    echo "Build Number: ${env.BUILD_NUMBER}"
+                    echo "Branch: ${env.GIT_BRANCH}"
+
+                    def scannerHome = tool 'SonarScanner'
+                    echo "Scanner Home: ${scannerHome}"
+
+                    withSonarQubeEnv('SonarQube') {
+                        echo "SonarQube Host URL: ${env.SONAR_HOST_URL}"
+                        echo "SonarQube Token configuré: ${env.SONAR_AUTH_TOKEN ? 'OUI' : 'NON'}"
+                    }
+                }
+            }
+        }
             steps {
                 echo '🔬 Analyse de la qualité du code avec SonarQube...'
                 script {
@@ -178,12 +196,12 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
             steps {
                 echo '🛡️ Vérification du Quality Gate SonarQube...'
                 script {
-                    timeout(time: 10, unit: 'MINUTES') {
+                    timeout(time: 15, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
                             echo "❌ Quality Gate échoué: ${qg.status}"
                             echo "Détails: ${qg}"
-                            unstable("Quality Gate échoué mais pipeline continue")
+                            error "Pipeline arrêté à cause du Quality Gate échoué"
                         } else {
                             echo "✅ Quality Gate réussi!"
                         }
