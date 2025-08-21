@@ -143,6 +143,8 @@ NGINX_PORT=80
                 }
             }
         }
+
+        stage('🔬 SonarQube Analysis') {
             steps {
                 echo '🔬 Analyse de la qualité du code avec SonarQube...'
                 script {
