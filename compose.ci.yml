@@ -20,7 +20,7 @@ services:
       - biblioflow_frontend
     ports:
       - "4200:80"
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       backend:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
       - biblioflow_frontend
     ports:
       - "3000:3000"
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,7 +72,7 @@ services:
       - biblioflow_backend
     ports:
       - "5432:5432"
-    restart: unless-stopped
+    restart: "no"
     volumes:
       - postgres_data_ci:/var/lib/postgresql/data
       # ✅ PLUS de bind mount vers ./docker/postgres/init
@@ -94,7 +94,7 @@ services:
       - biblioflow_backend
     ports:
       - "27017:27017"
-    restart: unless-stopped
+    restart: "no"
     volumes:
       - mongodb_data_ci:/data/db
 
@@ -106,7 +106,7 @@ services:
       - biblioflow_backend
     ports:
       - "80:80"
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       frontend:
         condition: service_started
