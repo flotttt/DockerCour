@@ -178,7 +178,7 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
             steps {
                 echo '🛡️ Vérification du Quality Gate SonarQube...'
                 script {
-                    timeout(time: 2, unit: 'MINUTES') {
+                    timeout(time: 10, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
                             echo "❌ Quality Gate échoué: ${qg.status}"
