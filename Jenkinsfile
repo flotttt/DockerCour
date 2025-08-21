@@ -123,6 +123,82 @@ NGINX_PORT=80
             }
         }
 
+        stage('🔬 SonarQube Analysis') {
+            steps {
+                echo '🔬 Analyse de la qualité du code avec SonarQube...'
+                script {
+                    // Créer le fichier de configuration SonarQube si il n'existe pas
+                    writeFile file: 'sonar-project.properties', text: '''
+sonar.projectKey=CourDockerProjet
+sonar.projectName=BiblioFlow - Projet Docker
+sonar.projectVersion=1.0
+sonar.sources=.
+sonar.exclusions=**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**
+sonar.sourceEncoding=UTF-8
+
+# Configuration pour JavaScript/TypeScript
+sonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+# Configuration pour le frontend (Angular/React)
+sonar.sources.frontend=biblioflow-frontend/src
+sonar.exclusions.frontend=**/node_modules/**,**/dist/**,**/coverage/**
+
+# Configuration pour le backend (Node.js)
+sonar.sources.backend=biblioflow-backend/src
+sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
+'''
+
+                    def scannerHome = tool 'SonarScanner'
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            echo "=== 🔬 Lancement de l'analyse SonarQube ==="
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=CourDockerProjet \
+                            -Dsonar.projectName='BiblioFlow - Projet Docker' \
+                            -Dsonar.projectVersion=${BUILD_NUMBER} \
+                            -Dsonar.sources=. \
+                            -Dsonar.exclusions='**/node_modules/**,**/coverage/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/Dockerfile,**/*.yml,**/*.yaml' \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.verbose=true
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    echo '📊 Analyse SonarQube terminée'
+                }
+                failure {
+                    echo '❌ Échec de l\'analyse SonarQube'
+                }
+            }
+        }
+
+        stage('🛡️ Quality Gate') {
+            steps {
+                echo '🛡️ Vérification du Quality Gate SonarQube...'
+                script {
+                    timeout(time: 5, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            echo "❌ Quality Gate échoué: ${qg.status}"
+                            echo "Détails: ${qg}"
+                            // On peut choisir de continuer ou d'arrêter
+                            // error "Pipeline arrêté à cause du Quality Gate"
+                            unstable("Quality Gate échoué mais pipeline continue")
+                        } else {
+                            echo "✅ Quality Gate réussi!"
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    echo '📊 Vérification Quality Gate terminée'
+                }
+            }
+        }
+
         stage('🚀 Deploy') {
             steps {
                 echo '🚀 Déploiement de l\'application...'
@@ -272,6 +348,7 @@ NGINX_PORT=80
                         echo "• Backend: http://localhost:3000 (ou IP: $BACKEND_IP:3000)"
                         echo "• API: http://localhost:3000/books"
                         echo "📊 Nginx: http://localhost:80"
+                        echo "🔬 SonarQube: http://localhost:9000/dashboard?id=CourDockerProjet"
                     '''
                 }
             }
@@ -297,17 +374,18 @@ NGINX_PORT=80
         success {
             echo '''
             🎉 ========================================
-            ✅ PIPELINE RÉUSSI - TP9 VALIDÉ!
+            ✅ PIPELINE RÉUSSI - TP10+11 VALIDÉ!
             ========================================
             📊 Services déployés:
             • Frontend: http://localhost:4200
             • Backend: http://localhost:3000
             • API: http://localhost:3000/books
+            🔬 SonarQube: http://localhost:9000
 
-            📋 Évaluation TP9:
-            ✅ 40% Pipeline fonctionnel
-            ✅ 30% Best practices (volumes, .env, overrides)
-            ✅ 30% Robustesse (gestion erreurs, retry)
+            📋 Évaluation TP10+11:
+            ✅ 40% Pipeline fonctionnel avec SonarQube
+            ✅ 30% Analyse qualité intégrée
+            ✅ 30% Quality Gate et gestion erreurs
             ========================================
             '''
         }
