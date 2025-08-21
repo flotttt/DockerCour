@@ -19,7 +19,7 @@ pipeline {
 
     stages {
         stage('🔍 Checkout') {
-        stage('🔬 SonarQube Analysis') {
+            steps {
                 echo '📥 Récupération du code source...'
                 sh '''
                     echo "=== 📋 Information du build ==="
@@ -125,20 +125,21 @@ NGINX_PORT=80
 
         stage('🔍 Debug SonarScanner') {
             steps {
-                echo '🔍 Debug des informations SonarScanner...'
+                echo '🔍 Debug des informations SonarQube...'
                 script {
-                    echo "=== 🔧 Configuration Debug ==="
-                    echo "Workspace: ${env.WORKSPACE}"
-                    echo "Build Number: ${env.BUILD_NUMBER}"
-                    echo "Branch: ${env.GIT_BRANCH}"
+                    sh '''
+                        echo "=== 🔍 Vérifications préliminaires ==="
+                        echo "Workspace: ${WORKSPACE}"
+                        echo "Build Number: ${BUILD_NUMBER}"
 
-                    def scannerHome = tool 'SonarScanner'
-                    echo "Scanner Home: ${scannerHome}"
+                        echo "=== 🔧 Test connectivité SonarQube ==="
+                        curl -f http://sonarqube:9000/api/system/status || echo "❌ Connexion SonarQube échouée"
 
-                    withSonarQubeEnv('SonarQube') {
-                        echo "SonarQube Host URL: ${env.SONAR_HOST_URL}"
-                        echo "SonarQube Token configuré: ${env.SONAR_AUTH_TOKEN ? 'OUI' : 'NON'}"
-                    }
+                        echo "=== 📁 Structure du projet ==="
+                        find . -name "*.js" -o -name "*.ts" | head -10
+
+                        echo "=== ✅ Debug terminé ==="
+                    '''
                 }
             }
         }
@@ -196,14 +197,18 @@ sonar.exclusions.backend=**/node_modules/**,**/dist/**,**/coverage/**
             steps {
                 echo '🛡️ Vérification du Quality Gate SonarQube...'
                 script {
-                    timeout(time: 15, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            echo "❌ Quality Gate échoué: ${qg.status}"
-                            echo "Détails: ${qg}"
-                            error "Pipeline arrêté à cause du Quality Gate échoué"
-                        } else {
-                            echo "✅ Quality Gate réussi!"
+                    // Le Quality Gate doit être dans le même contexte withSonarQubeEnv
+                    withSonarQubeEnv('SonarQube') {
+                        timeout(time: 15, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                echo "❌ Quality Gate échoué: ${qg.status}"
+                                echo "Détails: ${qg}"
+                                // Pipeline échoue si Quality Gate échoué (conforme au TP)
+                                error "Pipeline arrêté à cause du Quality Gate - TP11 validé"
+                            } else {
+                                echo "✅ Quality Gate réussi!"
+                            }
                         }
                     }
                 }
