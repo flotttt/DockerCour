@@ -1,0 +1,46 @@
+# ===== SECRETS ET CONFIG =====
+.env
+*.env
+.env.local
+.env.production
+.env.development
+
+# ===== NODE.JS =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== ANGULAR =====
+dist/
+tmp/
+.angular/
+
+# ===== NESTJS =====
+dist/
+build/
+
+# ===== DOCKER =====
+.docker/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== LOGS =====
+logs/
+*.log
+
+# ===== COVERAGE =====
+coverage/
+.nyc_output/
+
+# ===== TEMPORARY =====
+*.tmp
+*.temp
