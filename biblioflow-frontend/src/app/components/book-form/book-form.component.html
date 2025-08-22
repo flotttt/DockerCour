@@ -73,25 +73,7 @@
           </div>
         </div>
 
-        <!-- Champ Année -->
-        <div class="form-group">
-          <label for="year" class="form-label">
-            Année de publication <span class="required">*</span>
-          </label>
-          <input
-            id="year"
-            type="number"
-            formControlName="year"
-            class="form-input"
-            [class.error]="hasFieldError('year')"
-            placeholder="2024"
-            min="1000"
-            [max]="maxYear"
-          />
-          <div *ngIf="hasFieldError('year')" class="error-message">
-            {{ getFieldError('year') }}
-          </div>
-        </div>
+
 
         <!-- Champ ISBN -->
         <div class="form-group">

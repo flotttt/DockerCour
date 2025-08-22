@@ -72,7 +72,7 @@ export class BookFormComponent implements OnInit {
         [Validators.required]
       ],
       year: [
-        this.book?.year || new Date().getFullYear(),
+        (this.book?.year && !isNaN(this.book.year)) ? this.book.year : new Date().getFullYear(),
         [Validators.required, Validators.min(1000), Validators.max(this.maxYear)]
       ],
       isbn: [

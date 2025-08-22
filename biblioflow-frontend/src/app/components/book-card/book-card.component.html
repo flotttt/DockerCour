@@ -28,7 +28,6 @@
   <div class="card-content">
     <h3 class="book-title">{{ book.title }}</h3>
     <p class="book-author">par {{ book.author }}</p>
-    <p class="book-year">{{ getFormattedYear() }}</p>
 
     <div *ngIf="hasIsbn()" class="book-isbn">
       <span class="isbn-label">ISBN:</span>
