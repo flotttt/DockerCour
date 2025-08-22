@@ -1,0 +1,128 @@
+<!-- src/app/components/book-form/book-form.component.html -->
+<div class="modal-overlay" (click)="onCancel()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+
+    <!-- Header du modal -->
+    <div class="modal-header">
+      <h2 class="modal-title">{{ getModalTitle() }}</h2>
+      <button class="close-button" (click)="onCancel()" title="Fermer">
+        <span class="close-icon">✕</span>
+      </button>
+    </div>
+
+    <!-- Formulaire -->
+    <div class="modal-body">
+      <div [formGroup]="bookForm" class="book-form">
+
+        <!-- Champ Titre -->
+        <div class="form-group">
+          <label for="title" class="form-label">
+            Titre <span class="required">*</span>
+          </label>
+          <input
+            id="title"
+            type="text"
+            formControlName="title"
+            class="form-input"
+            [class.error]="hasFieldError('title')"
+            placeholder="Le titre du livre"
+            maxlength="255"
+          />
+          <div *ngIf="hasFieldError('title')" class="error-message">
+            {{ getFieldError('title') }}
+          </div>
+        </div>
+
+        <!-- Champ Auteur -->
+        <div class="form-group">
+          <label for="author" class="form-label">
+            Auteur <span class="required">*</span>
+          </label>
+          <input
+            id="author"
+            type="text"
+            formControlName="author"
+            class="form-input"
+            [class.error]="hasFieldError('author')"
+            placeholder="Nom de l'auteur"
+            maxlength="255"
+          />
+          <div *ngIf="hasFieldError('author')" class="error-message">
+            {{ getFieldError('author') }}
+          </div>
+        </div>
+
+        <!-- Champ Genre -->
+        <div class="form-group">
+          <label for="genre" class="form-label">
+            Genre <span class="required">*</span>
+          </label>
+          <select
+            id="genre"
+            formControlName="genre"
+            class="form-select"
+            [class.error]="hasFieldError('genre')"
+          >
+            <option value="">Sélectionner un genre</option>
+            <option *ngFor="let genre of genres" [value]="genre">
+              {{ genre }}
+            </option>
+          </select>
+          <div *ngIf="hasFieldError('genre')" class="error-message">
+            {{ getFieldError('genre') }}
+          </div>
+        </div>
+
+        <!-- Champ Année -->
+        <div class="form-group">
+          <label for="year" class="form-label">
+            Année de publication <span class="required">*</span>
+          </label>
+          <input
+            id="year"
+            type="number"
+            formControlName="year"
+            class="form-input"
+            [class.error]="hasFieldError('year')"
+            placeholder="2024"
+            min="1000"
+            [max]="maxYear"
+          />
+          <div *ngIf="hasFieldError('year')" class="error-message">
+            {{ getFieldError('year') }}
+          </div>
+        </div>
+
+        <!-- Champ ISBN -->
+        <div class="form-group">
+          <label for="isbn" class="form-label">
+            ISBN (optionnel)
+          </label>
+          <input
+            id="isbn"
+            type="text"
+            formControlName="isbn"
+            class="form-input"
+            [class.error]="hasFieldError('isbn')"
+            placeholder="978-2-07-040853-7"
+            maxlength="17"
+          />
+          <div class="form-hint">
+            Format : 10 ou 13 chiffres (avec ou sans tirets)
+          </div>
+          <div *ngIf="hasFieldError('isbn')" class="error-message">
+            {{ getFieldError('isbn') }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer avec actions -->
+    <div class="modal-footer">
+      <button class="secondary-button" (click)="onCancel()">Annuler</button>
+      <button class="primary-button" (click)="onSubmit()">{{ getSubmitButtonText() }}</button>
+    </div>
+
+  </div>
+</div>

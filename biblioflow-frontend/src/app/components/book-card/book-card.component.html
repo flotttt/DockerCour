@@ -1,0 +1,46 @@
+<!-- src/app/components/book-card/book-card.component.html -->
+<div class="book-card">
+  <!-- Header avec genre et actions -->
+  <div class="card-header">
+    <span class="genre-badge" [ngClass]="getGenreColor(book.genre)">
+      {{ book.genre }}
+    </span>
+
+    <div class="card-actions">
+      <button
+        class="action-btn edit-btn"
+        (click)="onEdit()"
+        title="Modifier le livre"
+      >
+        <span class="action-icon">✏️</span>
+      </button>
+      <button
+        class="action-btn delete-btn"
+        (click)="onDelete()"
+        title="Supprimer le livre"
+      >
+        <span class="action-icon">🗑️</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenu principal -->
+  <div class="card-content">
+    <h3 class="book-title">{{ book.title }}</h3>
+    <p class="book-author">par {{ book.author }}</p>
+    <p class="book-year">{{ getFormattedYear() }}</p>
+
+    <div *ngIf="hasIsbn()" class="book-isbn">
+      <span class="isbn-label">ISBN:</span>
+      <span class="isbn-value">{{ book.isbn }}</span>
+    </div>
+  </div>
+
+  <!-- Footer avec informations supplémentaires -->
+  <div class="card-footer">
+    <div class="book-id">ID: {{ book.id }}</div>
+    <div *ngIf="book.createdAt" class="creation-date">
+      Ajouté le {{ book.createdAt | date:'dd/MM/yyyy' }}
+    </div>
+  </div>
+</div>

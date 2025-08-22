@@ -1,0 +1,109 @@
+<!-- src/app/components/book-list/book-list.component.html -->
+<div class="book-list-container">
+  <!-- Header avec titre et bouton d'ajout -->
+  <div class="header-section">
+    <div class="header-content">
+      <div class="title-section">
+        <h1 class="main-title">📚 Gestionnaire de Livres</h1>
+        <p class="subtitle">
+          {{ getTotalBooksCount() }} livre{{ getTotalBooksCount() > 1 ? 's' : '' }} dans votre collection
+          <span *ngIf="searchTerm && getFilteredBooksCount() !== getTotalBooksCount()">
+            ({{ getFilteredBooksCount() }} affiché{{ getFilteredBooksCount() > 1 ? 's' : '' }})
+          </span>
+        </p>
+      </div>
+
+      <button class="add-button" (click)="openAddForm()" [disabled]="loading">
+        <span class="button-icon">+</span>
+        Ajouter un livre
+      </button>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="search-section">
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Rechercher par titre, auteur, genre ou année..."
+          [value]="searchTerm"
+          (input)="onSearchChange($any($event.target).value)"
+          [disabled]="loading"
+        />
+        <button
+          *ngIf="searchTerm"
+          class="clear-search"
+          (click)="onSearchChange('')"
+          title="Effacer la recherche"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Affichage des erreurs -->
+  <div *ngIf="error" class="error-banner">
+    <div class="error-content">
+      <span class="error-icon">⚠️</span>
+      <span class="error-message">{{ error }}</span>
+      <button class="error-close" (click)="clearError()">✕</button>
+    </div>
+  </div>
+
+  <!-- Indicateur de chargement -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Chargement des livres...</p>
+  </div>
+
+  <!-- Liste des livres -->
+  <div *ngIf="!loading" class="books-grid">
+    <app-book-card
+      *ngFor="let book of filteredBooks; trackBy: trackByBookId"
+      [book]="book"
+      (edit)="openEditForm(book)"
+      (delete)="deleteBook(book)"
+    ></app-book-card>
+  </div>
+
+  <!-- Message quand aucun livre n'est trouvé -->
+  <div *ngIf="!loading && filteredBooks.length === 0" class="empty-state">
+    <div class="empty-content">
+      <span class="empty-icon">📖</span>
+      <h3 class="empty-title">
+        {{ searchTerm ? 'Aucun livre trouvé' : 'Aucun livre dans votre collection' }}
+      </h3>
+      <p class="empty-message">
+        {{ searchTerm
+        ? 'Essayez de modifier votre recherche ou d\'ajouter un nouveau livre.'
+        : 'Commencez par ajouter votre premier livre à votre collection.'
+        }}
+      </p>
+      <button *ngIf="searchTerm" class="secondary-button" (click)="onSearchChange('')">
+        Afficher tous les livres
+      </button>
+      <button class="primary-button" (click)="openAddForm()">
+        <span class="button-icon">+</span>
+        Ajouter un livre
+      </button>
+    </div>
+  </div>
+
+  <!-- Bouton d'actualisation -->
+  <div class="refresh-section">
+    <button class="refresh-button" (click)="refresh()" [disabled]="loading">
+      <span class="refresh-icon">🔄</span>
+      Actualiser
+    </button>
+  </div>
+
+  <!-- Modal du formulaire -->
+  <app-book-form
+    *ngIf="showAddForm"
+    [book]="editingBook"
+    (submitted)="onFormSubmitted($event)"
+    (cancelled)="closeForm()"
+  ></app-book-form>
+</div>
